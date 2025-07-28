@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IVBL 比赛裁判查询</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f4f7f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #1a2b4d;
+            margin-bottom: 25px;
+        }
+        .selection-area {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        label {
+            font-weight: 600;
+        }
+        #team-select {
+            flex-grow: 1;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+        #results-container {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        .match {
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-left: 5px solid #007bff;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .match-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #0056b3;
+        }
+        .match-time, .match-referee {
+            font-size: 1em;
+            color: #555;
+            margin-top: 8px;
+        }
+        .loading, .message {
+            text-align: center;
+            color: #777;
+            font-size: 1.1em;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>IVBL 比赛裁判查询</h1>
+    
+    <div class="selection-area">
+        <label for="team-select">选择队伍:</label>
+        <select id="team-select">
+            <option value="">正在加载队伍列表...</option>
+        </select>
+    </div>
+
+    <div id="results-container">
+        <p class="message">请先选择一个队伍以查询相关比赛。</p>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const teamSelect = document.getElementById('team-select');
+        const resultsContainer = document.getElementById('results-container');
+
+        // 1. 页面加载时获取队伍列表并填充下拉框
+        fetch(`/api/get-teams`)
+            .then(response => response.json())
+            .then(data => {
+                if (response.ok) {
+                    teamSelect.innerHTML = '<option value="">-- 请选择队伍 --</option>'; // 清空并设置默认选项
+                    if (data.teams && data.teams.length > 0) {
+                        data.teams.forEach(team => {
+                            const option = document.createElement('option');
+                            option.value = team;
+                            option.textContent = team;
+                            teamSelect.appendChild(option);
+                        });
+                    } else {
+                        teamSelect.innerHTML = '<option value="">未找到任何队伍</option>';
+                    }
+                } else {
+                    throw new Error(data.message || '获取队伍列表失败');
+                }
+            })
+            .catch(error => {
+                console.error('获取队伍列表失败:', error);
+                teamSelect.innerHTML = '<option value="">加载失败</option>';
+                resultsContainer.innerHTML = `<p class="message" style="color: red;">${error.message}</p>`;
+            });
+
+        // 2. 当用户选择一个队伍时，获取并显示比赛结果
+        teamSelect.addEventListener('change', () => {
+            const selectedTeam = teamSelect.value;
+            if (!selectedTeam) {
+                resultsContainer.innerHTML = '<p class="message">请先选择一个队伍以查询相关比赛。</p>';
+                return;
+            }
+
+            resultsContainer.innerHTML = '<p class="loading">正在查询...</p>';
+
+            fetch(`/api/get-results?team=${encodeURIComponent(selectedTeam)}`)
+                .then(response => response.json())
+                .then(data => {
+                    resultsContainer.innerHTML = ''; // 清空之前的结果
+                    if (data.results && data.results.length > 0) {
+                        data.results.forEach(match => {
+                            const matchElement = document.createElement('div');
+                            matchElement.className = 'match';
+
+                            const title = document.createElement('div');
+                            title.className = 'match-title';
+                            title.textContent = match.title;
+
+                            const time = document.createElement('div');
+                            time.className = 'match-time';
+                            // 格式化日期和时间
+                            const matchDate = new Date(match.time);
+                            time.textContent = `时间: ${matchDate.toLocaleString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+
+                            const referee = document.createElement('div');
+                            referee.className = 'match-referee';
+                            referee.textContent = `裁判: ${match.referee}`;
+
+                            matchElement.appendChild(title);
+                            matchElement.appendChild(time);
+                            matchElement.appendChild(referee);
+                            resultsContainer.appendChild(matchElement);
+                        });
+                    } else {
+                        resultsContainer.innerHTML = '<p class="message">未找到该队伍“未着手”状态的比赛。</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('获取比赛结果失败:', error);
+                    resultsContainer.innerHTML = '<p class="message" style="color: red;">查询比赛结果失败，请稍后重试。</p>';
+                });
+        });
+    });
+</script>
+
+</body>
+</html>
