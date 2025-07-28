@@ -8,7 +8,6 @@ export default async function handler(req, res) {
   }
 
   const { team } = req.query;
-  
   const databaseId = process.env.DATABASE_ID;
 
   if (!databaseId) {
@@ -21,50 +20,44 @@ export default async function handler(req, res) {
 
   try {
     const response = await notion.databases.query({
-        database_id: databaseId,
-        filter: {
-            // 复合筛选：必须同时满足AND中的所有条件
-            and: [
-                {
-                    // 条件1: 比赛状态为 "未着手"
-                    property: "比赛状态",
-                    status: {
-                        equals: "未着手"
-                    }
-                },
-                {
-                    // 条件2: 主场或客场是选择的队伍
-                    or: [
-                        { property: "主场", select: { equals: team } },
-                        { property: "客场", select: { equals: team } }
-                    ]
-                }
+      database_id: databaseId,
+      filter: {
+        and: [
+          { property: "比赛状态", status: { equals: "未着手" } },
+          { or: [
+              { property: "主场", select: { equals: team } },
+              { property: "客场", select: { equals: team } }
             ]
-        },
-        sorts: [
-            {
-                property: "日期",
-                direction: "ascending"
-            }
+          }
         ]
+      },
+      sorts: [
+        { property: "日期", direction: "ascending" }
+      ]
     });
     
-    // 从返回结果中提取并格式化所需的数据
-    const results = response.results.map(page => {
-        const properties = page.properties;
-        
-        // 提取裁判名字，可能有多位裁判
-        const user_id = properties['裁判'].people.id || [];
+    const results = await Promise.all(response.results.map(async (page) => {
+      const properties = page.properties;
+      let refereeName = '无裁判。若有裁判已经接手比赛，请让对方尽快填报Notion。';
 
-        query_user = notion.users.retrieve(user_id=user_id)
-        username = user_response["name"]
+      const refereeUser = properties['裁判']?.people?.[0];
 
-        return {
-            title: properties['标题']?.title[0]?.plain_text || '无标题',
-            time: properties['日期']?.date?.start || '无时间',
-            referee: username || '无裁判。若有裁判已经接手比赛，请让对方尽快填报Notion。'
-        };
-    });
+      if (refereeUser && refereeUser.id) {
+        try {
+          const userResponse = await notion.users.retrieve({ user_id: refereeUser.id });
+          refereeName = userResponse.name || '未知裁判';
+        } catch (userError) {
+            console.error(`获取裁判(ID: ${refereeUser.id})信息失败:`, userError);
+            refereeName = '获取裁判信息失败';
+        }
+      }
+
+      return {
+        title: properties['标题']?.title[0]?.plain_text || '无标题',
+        time: properties['日期']?.date?.start || '无时间',
+        referee: refereeName
+      };
+    }));
 
     res.status(200).json({ results });
 
