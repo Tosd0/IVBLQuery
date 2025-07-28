@@ -43,7 +43,7 @@ export default async function handler(req, res) {
         },
         sorts: [
             {
-                property: "时间",
+                property: "日期",
                 direction: "ascending"
             }
         ]
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
 
         return {
             title: properties['标题']?.title[0]?.plain_text || '无标题',
-            time: properties['时间']?.date?.start || '无时间',
+            time: properties['日期']?.date?.start || '无时间',
             referee: refereeNames || '暂无裁判'
         };
     });
