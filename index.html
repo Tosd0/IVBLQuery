@@ -98,22 +98,29 @@
 
         // 1. 页面加载时获取队伍列表并填充下拉框
         fetch(`/api/get-teams`)
-            .then(response => response.json())
-            .then(data => {
-                if (response.ok) {
-                    teamSelect.innerHTML = '<option value="">-- 请选择队伍 --</option>'; // 清空并设置默认选项
-                    if (data.teams && data.teams.length > 0) {
-                        data.teams.forEach(team => {
-                            const option = document.createElement('option');
-                            option.value = team;
-                            option.textContent = team;
-                            teamSelect.appendChild(option);
-                        });
-                    } else {
-                        teamSelect.innerHTML = '<option value="">未找到任何队伍</option>';
+            .then(response => {
+                // We need to check response.ok to decide whether to treat the body as a success or an error payload.
+                return response.json().then(data => {
+                    if (!response.ok) {
+                        // If not OK, we create and throw an error that the .catch block will handle.
+                        // This preserves the error message from the server response body.
+                        throw new Error(data.message || '获取队伍列表失败');
                     }
+                    // If OK, we just pass the data along to the next .then block.
+                    return data;
+                });
+            })
+            .then(data => {
+                teamSelect.innerHTML = '<option value="">-- 请选择队伍 --</option>'; // 清空并设置默认选项
+                if (data.teams && data.teams.length > 0) {
+                    data.teams.forEach(team => {
+                        const option = document.createElement('option');
+                        option.value = team;
+                        option.textContent = team;
+                        teamSelect.appendChild(option);
+                    });
                 } else {
-                    throw new Error(data.message || '获取队伍列表失败');
+                    teamSelect.innerHTML = '<option value="">未找到任何队伍</option>';
                 }
             })
             .catch(error => {
