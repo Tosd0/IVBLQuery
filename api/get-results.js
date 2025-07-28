@@ -54,13 +54,13 @@ export default async function handler(req, res) {
         const properties = page.properties;
         
         // 提取裁判名字，可能有多位裁判
-        const referees = properties['裁判']?.people || [];
+        const referees = properties['裁判'] || [];
         const refereeNames = referees.map(person => person.name).join(', ');
 
         return {
             title: properties['标题']?.title[0]?.plain_text || '无标题',
             time: properties['日期']?.date?.start || '无时间',
-            referee: refereeNames || '暂无裁判'
+            referee: referees || '无裁判。若有裁判已经接手比赛，请让对方尽快填报Notion。'
         };
     });
 
