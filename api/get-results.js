@@ -55,7 +55,6 @@ export default async function handler(req, res) {
         
         // 提取裁判名字，可能有多位裁判
         const referees = properties['裁判'] || [];
-        const refereeNames = referees.map(person => person.name).join(', ');
 
         return {
             title: properties['标题']?.title[0]?.plain_text || '无标题',
